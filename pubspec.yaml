@@ -37,6 +37,11 @@ dependencies:
   provider: ^6.1.5+1
   google_fonts: ^6.1.0
   fluttertoast: ^9.0.0
+  image_picker: ^1.2.1
+  firebase_core: ^4.9.0
+  firebase_auth: ^6.5.1
+  cloud_firestore: ^6.4.1
+  
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +71,10 @@ flutter:
     - assets/images/banners/
     - assets/images/categories/
     - assets/images/products/
+    - assets/images/products/women/
+    - assets/images/products/men/
+    - assets/images/products/kids/
+    - assets/images/products/accessories/
     - assets/images/user/
 
   # An image asset can refer to one or more resolution-specific "variants", see

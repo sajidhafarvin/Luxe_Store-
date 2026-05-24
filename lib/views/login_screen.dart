@@ -20,19 +20,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     final authVM = Provider.of<AuthViewModel>(context, listen: false);
-    final success = await authVM.login(_emailController.text, _passwordController.text);
-    
+    final success = await authVM.login(
+      _emailController.text,
+      _passwordController.text,
+    );
+
     if (success) {
       if (mounted) Navigator.pushReplacementNamed(context, AppRoutes.home);
     } else {
-      Fluttertoast.showToast(msg: authVM.errorMessage, backgroundColor: AppColors.error);
+      Fluttertoast.showToast(
+        msg: authVM.errorMessage,
+        backgroundColor: AppColors.error,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isLoading = context.watch<AuthViewModel>().isLoading;
-    
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -43,7 +49,11 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Text(
                 'Welcome Back',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),

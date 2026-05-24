@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "350260074721",
+    "firebase_url": "https://luxestore-43d3b-default-rtdb.firebaseio.com",
+    "project_id": "luxestore-43d3b",
+    "storage_bucket": "luxestore-43d3b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:350260074721:android:939bdf32f2fe625baa3fa0",
+        "android_client_info": {
+          "package_name": "com.example.flutter_demo_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRIsf4XLu2i8EOUY3Dyfk-HDBTXy2RB8U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
