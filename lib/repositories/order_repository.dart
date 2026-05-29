@@ -17,12 +17,21 @@ class OrderRepository {
     if (uid == null) return const Stream.empty();
 
     return _firestore
-        .collection('users')
-        .doc(uid)
         .collection('orders')
-        .orderBy('createdAt', descending: true)
+        .where('userId', isEqualTo: uid)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((d) => _mapOrderDoc(d.id, d.data())).toList());
+        .map((snapshot) {
+          final docs = snapshot.docs.toList();
+          docs.sort((a, b) {
+            final aTime = a.data()['createdAt'];
+            final bTime = b.data()['createdAt'];
+            if (aTime is Timestamp && bTime is Timestamp) {
+              return bTime.compareTo(aTime);
+            }
+            return 0;
+          });
+          return docs.map((d) => _mapOrderDoc(d.id, d.data())).toList();
+        });
   }
 
   Future<String> placeOrder({
@@ -74,12 +83,20 @@ class OrderRepository {
 
     final status = (data['status'] ?? 'Pending').toString();
     final statusColor = _statusColor(status).value;
-    final total = (data['total'] is num) ? (data['total'] as num).toDouble() : 0.0;
+    
+    final totalVal = data['totalAmount'] ?? data['total'];
+    final total = (totalVal is num) ? totalVal.toDouble() : 0.0;
+    
     final items = (data['items'] is List) ? List<Map<String, dynamic>>.from(data['items'] as List) : <Map<String, dynamic>>[];
+
+    final rawOrderNumber = data['orderNumber'];
+    final orderNumber = rawOrderNumber != null 
+        ? rawOrderNumber.toString() 
+        : 'LX-${id.length >= 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase()}';
 
     return {
       'id': id,
-      'orderNumber': (data['orderNumber'] ?? '').toString(),
+      'orderNumber': orderNumber,
       'date': '${_getMonth(date.month)} ${date.day}, ${date.year}',
       'total': '\$${total.toStringAsFixed(2)}',
       'status': status,

@@ -1,66 +1,107 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Product {
   final String id;
-  final String name;
-  final String description;
-  final double price;
-  final String imageUrl;
-  final String category;
   final String brand;
-  final double? originalPrice;
+  final String category;
+  final String name;
+  final int price;
+  final int originalPrice;
   final double rating;
   final int reviewsCount;
-  final String? materialTitle;
-  final String? materialDescription;
+  final String description;
+  final String imageUrl;
+  final String materialTitle;
+  final String materialDescription;
+  final List<String> sizes;
+  final bool inStock;
+  final Timestamp? createdAt;
 
   Product({
     required this.id,
-    required this.name,
-    required this.description,
-    required this.price,
-    required this.imageUrl,
+    required this.brand,
     required this.category,
-    this.brand = 'ATELIER LUXE',
-    this.originalPrice,
-    this.rating = 0.0,
-    this.reviewsCount = 0,
-    this.materialTitle,
-    this.materialDescription,
+    required this.name,
+    required this.price,
+    required this.originalPrice,
+    required this.rating,
+    required this.reviewsCount,
+    required this.description,
+    required this.imageUrl,
+    required this.materialTitle,
+    required this.materialDescription,
+    required this.sizes,
+    required this.inStock,
+    this.createdAt,
   });
 
-  factory Product.fromFirestore(String id, Map<String, dynamic> data) {
+  factory Product.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    // Safely parse numeric fields in case they were saved as double or string
     final priceRaw = data['price'];
-    final originalRaw = data['originalPrice'];
+    final price = priceRaw is num
+        ? priceRaw.toInt()
+        : int.tryParse(priceRaw?.toString() ?? '') ?? 0;
+
+    final originalPriceRaw = data['originalPrice'];
+    final originalPrice = originalPriceRaw is num
+        ? originalPriceRaw.toInt()
+        : int.tryParse(originalPriceRaw?.toString() ?? '') ?? 0;
+
+    final ratingRaw = data['rating'];
+    final rating = ratingRaw is num
+        ? ratingRaw.toDouble()
+        : double.tryParse(ratingRaw?.toString() ?? '') ?? 0.0;
+
+    final reviewsCountRaw = data['reviewsCount'];
+    final reviewsCount = reviewsCountRaw is num
+        ? reviewsCountRaw.toInt()
+        : int.tryParse(reviewsCountRaw?.toString() ?? '') ?? 0;
+
     return Product(
-      id: id,
-      name: (data['name'] ?? '').toString(),
-      description: (data['description'] ?? '').toString(),
-      price: priceRaw is num ? priceRaw.toDouble() : double.tryParse(priceRaw.toString()) ?? 0,
-      imageUrl: (data['imageUrl'] ?? '').toString(),
-      category: (data['category'] ?? '').toString(),
-      brand: (data['brand'] ?? 'ATELIER LUXE').toString(),
-      originalPrice: originalRaw == null
-          ? null
-          : (originalRaw is num ? originalRaw.toDouble() : double.tryParse(originalRaw.toString())),
-      rating: (data['rating'] is num) ? (data['rating'] as num).toDouble() : 0,
-      reviewsCount: (data['reviewsCount'] is num) ? (data['reviewsCount'] as num).toInt() : 0,
-      materialTitle: data['materialTitle']?.toString(),
-      materialDescription: data['materialDescription']?.toString(),
+      id: doc.id,
+      brand: data['brand']?.toString() ?? '',
+      category: data['category']?.toString() ?? '',
+      name: data['name']?.toString() ?? '',
+      price: price,
+      originalPrice: originalPrice,
+      rating: rating,
+      reviewsCount: reviewsCount,
+      description: data['description']?.toString() ?? '',
+      imageUrl: data['imageUrl']?.toString() ?? '',
+      materialTitle: data['materialTitle']?.toString() ?? '',
+      materialDescription: data['materialDescription']?.toString() ?? '',
+      sizes: List<String>.from(data['sizes'] ?? []),
+      inStock: data['inStock'] ?? true,
+      createdAt: data['createdAt'] as Timestamp?,
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
-      'name': name,
-      'description': description,
-      'price': price,
-      'imageUrl': imageUrl,
-      'category': category,
       'brand': brand,
-      if (originalPrice != null) 'originalPrice': originalPrice,
+      'category': category,
+      'name': name,
+      'price': price,
+      'originalPrice': originalPrice,
       'rating': rating,
       'reviewsCount': reviewsCount,
-      if (materialTitle != null) 'materialTitle': materialTitle,
-      if (materialDescription != null) 'materialDescription': materialDescription,
+      'description': description,
+      'imageUrl': imageUrl,
+      'materialTitle': materialTitle,
+      'materialDescription': materialDescription,
+      'sizes': sizes,
+      'inStock': inStock,
+      'createdAt': createdAt ?? FieldValue.serverTimestamp(),
     };
   }
+
+  // Getters
+  int get discountPercentage {
+    if (originalPrice <= 0) return 0;
+    return (((originalPrice - price) / originalPrice) * 100).round();
+  }
+
+  bool get isOnSale => price < originalPrice;
 }

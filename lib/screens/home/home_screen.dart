@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/app_routes.dart';
 import '../../models/product.dart';
-import '../../repositories/product_repository.dart';
+import '../../providers/product_provider.dart';
 import '../../utils/cart_manager.dart';
 import '../../utils/user_session.dart';
 import '../../utils/wishlist_manager.dart';
@@ -21,20 +22,23 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentBanner = 0;
   int _selectedCategory = 0;
-  final _productRepository = ProductRepository();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    setState(() {});
+  void initState() {
+    super.initState();
+    Provider.of<ProductProvider>(context, listen: false).fetchProducts();
   }
 
-  Widget _buildCategoryChip(String label, int index, String route, ThemeData theme) {
+
+
+  // Category names mapped to indices — used by both chips and the grid filter
+  static const _categoryNames = ['All', 'Women', 'Men', 'Kids', 'Accessories'];
+
+  Widget _buildCategoryChip(String label, int index, ThemeData theme) {
     bool isSelected = _selectedCategory == index;
     return GestureDetector(
       onTap: () {
         setState(() => _selectedCategory = index);
-        Navigator.pushNamed(context, route);
       },
       child: Container(
         margin: const EdgeInsets.only(right: 8),
@@ -58,20 +62,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildProductCard(Product product, int index, ThemeData theme) {
     return GestureDetector(
       onTap: () => Navigator.pushNamed(
-        context, 
+        context,
         AppRoutes.productDetails,
-        arguments: {
-          'id': product.id,
-          'name': product.name,
-          'price': "\$${product.price.toStringAsFixed(2)}",
-          'image': product.imageUrl,
-          'brand': product.brand,
-          'rating': product.rating.toStringAsFixed(1),
-          'index': index % 10,
-          'description': product.description,
-          'materialTitle': product.materialTitle,
-          'materialDescription': product.materialDescription,
-        },
+        arguments: product, // Pass Product object directly
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -331,12 +324,10 @@ class _HomeScreenState extends State<HomeScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
-                children: [
-                  _buildCategoryChip("Women", 0, AppRoutes.womenProducts, theme),
-                  _buildCategoryChip("Men", 1, AppRoutes.menProducts, theme),
-                  _buildCategoryChip("Kids", 2, AppRoutes.kidsProducts, theme),
-                  _buildCategoryChip("Accessories", 3, AppRoutes.accessoriesProducts, theme),
-                ],
+                children: List.generate(
+                  _categoryNames.length,
+                  (i) => _buildCategoryChip(_categoryNames[i], i, theme),
+                ),
               ),
             ),
 
@@ -352,18 +343,35 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: StreamBuilder<List<Product>>(
-                stream: _productRepository.watchProducts(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+              child: Builder(
+                builder: (context) {
+                  final productProvider = Provider.of<ProductProvider>(context);
+                  final isLoading = productProvider.isLoading;
+
+                  if (isLoading) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
-                  final products = snapshot.data ?? [];
-                  final count = products.length < 4 ? products.length : 4;
-                  if (count == 0) {
+
+                  // Filter products by the selected category
+                  final selectedName = _categoryNames[_selectedCategory];
+                  final products = productProvider.getProductsByCategory(selectedName);
+
+                  if (products.isEmpty) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 24),
-                      child: Center(child: Text("No products found", style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.6)))),
+                      child: Center(
+                        child: Text(
+                          "No products found",
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                        ),
+                      ),
                     );
                   }
                   return GridView.builder(
@@ -371,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     padding: const EdgeInsets.only(bottom: 24),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.72),
-                    itemCount: count,
+                    itemCount: products.length,
                     itemBuilder: (context, index) => _buildProductCard(products[index], index, theme),
                   );
                 },

@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../constants/app_colors.dart';
 import '../../utils/cart_manager.dart';
 import '../../repositories/order_repository.dart';
 import '../../constants/app_routes.dart';
+import '../../providers/auth_provider.dart' as app_auth;
+import '../../providers/cart_provider.dart';
+import '../../providers/order_provider.dart';
+import '../../models/order.dart' as app_model;
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({Key? key}) : super(key: key);
@@ -177,55 +183,92 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 onPressed: _isPlacingOrder
                     ? null
                     : () async {
-                        if (FirebaseAuth.instance.currentUser == null) {
+                        // 1. Check if user logged in
+                        final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+                        if (authProvider.user == null) {
                           if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please login to continue"), backgroundColor: Colors.red));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Please login to continue"), backgroundColor: Colors.red),
+                          );
                           Navigator.pushNamed(context, AppRoutes.login);
                           return;
                         }
 
                         if (isCartEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Your cart is empty"), backgroundColor: Colors.red));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Your cart is empty"), backgroundColor: Colors.red),
+                          );
                           return;
                         }
 
-                        if (_nameController.text.isEmpty || _phoneController.text.isEmpty || _address1Controller.text.isEmpty || _cityController.text.isEmpty || _postalController.text.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill all required fields"), backgroundColor: Colors.red));
+                        if (_nameController.text.isEmpty || 
+                            _phoneController.text.isEmpty || 
+                            _address1Controller.text.isEmpty || 
+                            _cityController.text.isEmpty || 
+                            _postalController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Please fill all required fields"), backgroundColor: Colors.red),
+                          );
                           return;
                         }
 
                         setState(() => _isPlacingOrder = true);
-                        final currentItems = List<Map<String, dynamic>>.from(cartManager.items);
-                        final currentTotal = cartManager.totalPrice;
-                        final paymentMethod = _selectedPayment == 0 ? 'Cash on Delivery' : 'Credit Card';
 
-                        try {
-                          final orderNumber = await OrderRepository().placeOrder(
-                            items: currentItems,
-                            total: currentTotal,
-                            paymentMethod: paymentMethod,
-                            delivery: {
-                              'name': _nameController.text.trim(),
-                              'phone': _phoneController.text.trim(),
-                              'address1': _address1Controller.text.trim(),
-                              'address2': _address2Controller.text.trim(),
-                              'city': _cityController.text.trim(),
-                              'postalCode': _postalController.text.trim(),
-                            },
-                          );
-                          CartManager().clear();
+                        final cartProvider = Provider.of<CartProvider>(context, listen: false);
+                        final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+
+                        final addressString = "${_nameController.text.trim()}, ${_phoneController.text.trim()}, ${_address1Controller.text.trim()}${_address2Controller.text.trim().isEmpty ? "" : ", " + _address2Controller.text.trim()}, ${_cityController.text.trim()}, ${_postalController.text.trim()}";
+                        final selectedPaymentMethod = _selectedPayment == 0 ? 'Cash on Delivery' : 'Credit Card';
+
+                        // 2. Create Order object
+                        final order = app_model.Order(
+                          userId: authProvider.user!.uid,
+                          items: cartProvider.cartItems,
+                          totalAmount: cartProvider.totalAmount,
+                          status: 'pending',
+                          deliveryAddress: addressString,
+                          paymentMethod: selectedPaymentMethod,
+                          createdAt: Timestamp.now(),
+                        );
+
+                        // 3. Show loading indicator
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+
+                        // 4. Save to Firestore
+                        final success = await orderProvider.createOrder(order);
+
+                        // 5. Hide loading
+                        if (!mounted) return;
+                        Navigator.pop(context);
+
+                        // 6. If success:
+                        if (success) {
+                          // Clear cart
+                          cartProvider.clearCart();
+                          
                           if (!mounted) return;
-                          Navigator.pushNamed(
-                            context,
-                            AppRoutes.orderConfirmation,
-                            arguments: {'paymentMethod': paymentMethod, 'total': currentTotal.toStringAsFixed(2), 'orderNumber': orderNumber},
+                          // Navigate to Order Confirmation Screen
+                          Navigator.pushReplacementNamed(context, '/orderConfirmation', 
+                            arguments: order);
+                          
+                          // Show success message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('✅ Order Placed Successfully!')),
                           );
-                        } catch (e) {
+                        } else {
                           if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to place order. Please try again."), backgroundColor: Colors.red));
-                        } finally {
-                          if (mounted) setState(() => _isPlacingOrder = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Failed to place order. Please try again.'), backgroundColor: Colors.red),
+                          );
                         }
+                        
+                        if (mounted) setState(() => _isPlacingOrder = false);
                       },
                 child: _isPlacingOrder
                     ? const CircularProgressIndicator(color: Colors.white)

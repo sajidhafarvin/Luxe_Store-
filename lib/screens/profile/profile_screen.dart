@@ -10,6 +10,10 @@ import '../../utils/user_session.dart';
 import '../../utils/cart_manager.dart';
 import '../../utils/wishlist_manager.dart';
 import '../../utils/theme_manager.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/order_provider.dart';
+import '../../models/order.dart' as app_model;
+import 'package:provider/provider.dart';
 import 'wishlist_screen.dart';
 import 'settings_screen.dart';
 import 'notifications_screen.dart';
@@ -27,12 +31,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController(text: '+1 234 567 8900');
+  Future<List<app_model.Order>>? _ordersFuture;
 
   @override
   void initState() {
     super.initState();
     _nameController.text = UserSession().userName.isNotEmpty ? UserSession().userName : 'Eleanor Sterling';
     _emailController.text = UserSession().userEmail.isNotEmpty ? UserSession().userEmail : 'e.sterling@luxe.com';
+    
+    // Fetch orders count
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.user != null) {
+        setState(() {
+          _ordersFuture = Provider.of<OrderProvider>(context, listen: false).getUserOrders(authProvider.user!.uid);
+        });
+      }
+    });
   }
 
   XFile? _selectedImage;
@@ -221,7 +236,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildStat("12", "Orders", theme),
+                  _ordersFuture == null 
+                    ? _buildStat("0", "Orders", theme)
+                    : FutureBuilder<List<app_model.Order>>(
+                        future: _ordersFuture,
+                        builder: (context, snapshot) {
+                          final count = snapshot.hasData ? snapshot.data!.length : 0;
+                          return _buildStat("$count", "Orders", theme);
+                        },
+                      ),
                   Container(height: 40, width: 1, color: theme.dividerColor),
                   _buildStat("\$3,240", "Spent", theme, color: AppColors.secondaryColor),
                   Container(height: 40, width: 1, color: theme.dividerColor),

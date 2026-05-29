@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../../constants/app_colors.dart';
 import '../../constants/app_routes.dart';
-import '../../repositories/auth_repository.dart';
-import '../../utils/user_session.dart';
+import '../../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,7 +22,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isValidEmail(String email) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
 
-  bool isStrongPassword(String password) => RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[@#$%&*!])(?=.{8,})').hasMatch(password);
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity, height: 52,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    onPressed: () => _handleLogin(theme),
+                    onPressed: _isLoading ? null : () => _handleLogin(theme),
                     child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text("Login", style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ),
@@ -126,42 +131,49 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
+    // Client-side validation
     if (email.isEmpty || !_isValidEmail(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email address.'), backgroundColor: Colors.red),
-      );
+      _showSnackBar('Please enter a valid email address.');
       return;
     }
 
-    if (!isStrongPassword(password.trim())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password must be at least 8 characters and include uppercase, lowercase, number, and special character.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (password.isEmpty) {
+      _showSnackBar('Please enter your password.');
       return;
     }
 
     setState(() => _isLoading = true);
-    final repo = AuthRepository();
 
-    try {
-      await repo.signInWithEmailPassword(email: email, password: password.trim());
-      UserSession().login(email.split('@').first, email);
-      if (mounted) Navigator.pushReplacementNamed(context, AppRoutes.home);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(repo.friendlyError(e)), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.signInWithEmail(email, password);
+
+    if (!mounted) return;
+
+    setState(() => _isLoading = false);
+
+    if (success) {
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
+    } else {
+      // Show the friendly error from AuthProvider
+      final errorMsg = authProvider.errorMessage ?? 'Login failed. Please try again.';
+      _showSnackBar(errorMsg);
     }
-}
+  }
+
+  void _showSnackBar(String message, {Color backgroundColor = Colors.red}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.poppins(fontSize: 13)),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
 
   void _showForgotPassword(ThemeData theme) {
+    final resetEmailController = TextEditingController();
     showModalBottomSheet(
       context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
       builder: (context) => Container(
@@ -174,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 8),
           Text("Enter your email address to reset password.", style: GoogleFonts.poppins(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6))),
           const SizedBox(height: 24),
-          _buildInput(controller: TextEditingController(), label: "Email Address", icon: Icons.email_outlined, theme: theme),
+          _buildInput(controller: resetEmailController, label: "Email Address", icon: Icons.email_outlined, theme: theme),
           const SizedBox(height: 24),
           SizedBox(width: double.infinity, height: 52, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () => Navigator.pop(context), child: Text("Send Reset Link", style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)))),
         ]),

@@ -14,7 +14,7 @@ class ProductRepository {
     }
 
     return query.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => Product.fromFirestore(doc.id, doc.data())).toList();
+      return snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList();
     });
   }
 
@@ -25,7 +25,7 @@ class ProductRepository {
     }
 
     final snapshot = await query.get();
-    return snapshot.docs.map((doc) => Product.fromFirestore(doc.id, doc.data())).toList();
+    return snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList();
   }
 }
 

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+
+import 'firebase_options.dart';
+import 'providers/auth_provider.dart';
+import 'providers/product_provider.dart';
+import 'providers/cart_provider.dart';
+import 'providers/order_provider.dart';
 
 import 'constants/app_routes.dart';
-import 'screens/splash/splash_screen.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -29,10 +35,19 @@ import 'services/firestore_seeder.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
   try {
-    await FirestoreSeeder().seedIfNeeded();
-  } catch (_) {}
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
+
+  // Seed Firestore BEFORE running the app to avoid race conditions with Provider fetch
+  await seedProductsToFirestore().catchError((e) {
+    debugPrint('Seeder error: $e');
+  });
+
   runApp(const LuxeStoreApp());
 }
 
@@ -41,43 +56,56 @@ class LuxeStoreApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: isDarkModeNotifier,
-      builder: (context, isDark, child) {
-        return MaterialApp(
-          title: 'Luxe Store',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-          initialRoute: AppRoutes.splash,
-          routes: {
-            AppRoutes.splash: (context) => const SplashScreen(),
-            AppRoutes.login: (context) => const LoginScreen(),
-            AppRoutes.register: (context) => const RegisterScreen(),
-            AppRoutes.home: (context) => const HomeScreen(),
-            AppRoutes.productList: (context) => const ProductListScreen(),
-            AppRoutes.productDetails: (context) => const ProductDetailsScreen(),
-            AppRoutes.womenProducts: (context) =>
-                const WomenProductListScreen(),
-            AppRoutes.menProducts: (context) => const MenProductListScreen(),
-            AppRoutes.kidsProducts: (context) => const KidsProductListScreen(),
-            AppRoutes.accessoriesProducts: (context) =>
-                const AccessoriesProductListScreen(),
-            AppRoutes.cart: (context) => const CartScreen(),
-            AppRoutes.checkout: (context) => const CheckoutScreen(),
-            AppRoutes.orderConfirmation: (context) =>
-                const OrderConfirmationScreen(),
-            AppRoutes.orderHistory: (context) => const OrderHistoryScreen(),
-            AppRoutes.profile: (context) => const ProfileScreen(),
-            '/settings': (context) => const SettingsScreen(),
-            '/notifications': (context) => const NotificationsScreen(),
-            '/addresses': (context) => const AddressesScreen(),
-            '/search': (context) => const SearchScreen(),
-            '/wishlist': (context) => const WishlistScreen(),
-          },
-        );
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(
+          create: (_) => ProductProvider()..fetchProducts(),
+        ),
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => OrderProvider()),
+      ],
+      child: ValueListenableBuilder<bool>(
+        valueListenable: isDarkModeNotifier,
+        builder: (context, isDark, child) {
+          return MaterialApp(
+            title: 'Luxe Store',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+            initialRoute: AppRoutes.splash,
+            routes: {
+              AppRoutes.splash: (context) => const SplashScreen(),
+              AppRoutes.login: (context) => const LoginScreen(),
+              AppRoutes.register: (context) => const RegisterScreen(),
+              AppRoutes.home: (context) => const HomeScreen(),
+              AppRoutes.productList: (context) => const ProductListScreen(),
+              AppRoutes.productDetails: (context) =>
+                  const ProductDetailsScreen(),
+              AppRoutes.womenProducts: (context) =>
+                  const WomenProductListScreen(),
+              AppRoutes.menProducts: (context) => const MenProductListScreen(),
+              AppRoutes.kidsProducts: (context) =>
+                  const KidsProductListScreen(),
+              AppRoutes.accessoriesProducts: (context) =>
+                  const AccessoriesProductListScreen(),
+              AppRoutes.cart: (context) => const CartScreen(),
+              AppRoutes.checkout: (context) => const CheckoutScreen(),
+              AppRoutes.orderConfirmation: (context) =>
+                  const OrderConfirmationScreen(),
+              '/orderConfirmation': (context) => const OrderConfirmationScreen(),
+              AppRoutes.orderHistory: (context) => const OrderHistoryScreen(),
+              AppRoutes.profile: (context) => const ProfileScreen(),
+              '/settings': (context) => const SettingsScreen(),
+              '/notifications': (context) => const NotificationsScreen(),
+              '/addresses': (context) => const AddressesScreen(),
+              '/search': (context) => const SearchScreen(),
+              '/wishlist': (context) => const WishlistScreen(),
+            },
+          );
+        },
+      ),
     );
   }
 }

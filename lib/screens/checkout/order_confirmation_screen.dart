@@ -1,16 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../constants/app_colors.dart';
+import '../../models/order.dart';
 
 class OrderConfirmationScreen extends StatelessWidget {
   const OrderConfirmationScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+    Order? order;
+    Map<String, dynamic>? legacyArgs;
+    if (arguments is Order) {
+      order = arguments;
+    } else if (arguments is Map<String, dynamic>) {
+      legacyArgs = arguments;
+    }
+
     final theme = Theme.of(context);
-    final String paymentMethod = args?['paymentMethod'] ?? 'Cash on Delivery';
-    final String totalAmount = args?['total'] != null ? '\$${args!['total']}' : '\$1,090.00';
+    final String paymentMethod = order?.paymentMethod ?? legacyArgs?['paymentMethod'] ?? 'Cash on Delivery';
+    final String totalAmount = order != null 
+        ? '\$${order.totalAmount.toStringAsFixed(2)}' 
+        : (legacyArgs?['total'] != null ? '\$${legacyArgs!['total']}' : '\$1,090.00');
+    final String orderNumber = order?.id ?? legacyArgs?['orderNumber'] ?? "LX-PP28401";
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -33,7 +45,7 @@ class OrderConfirmationScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildRow("Order Number", args?['orderNumber'] ?? "LX-PP28401", theme, isBold: true),
+                    _buildRow("Order Number", orderNumber, theme, isBold: true),
                     Divider(height: 32, color: theme.dividerColor),
                     _buildRow("Date", "Oct 24-26, 2025", theme),
                     const SizedBox(height: 8),
