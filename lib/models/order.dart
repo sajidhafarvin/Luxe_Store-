@@ -6,7 +6,7 @@ class OrderItem {
   int quantity;
 
   OrderItem({required this.product, required this.quantity});
-  
+
   double get totalPrice => (product.price * quantity).toDouble();
 }
 
@@ -71,13 +71,13 @@ class Order {
     required this.userId,
     required this.items,
     required this.totalAmount,
-    required this.status,
-    required this.statusHistory,
+    this.status = 'pending',
+    this.statusHistory = const [],
     this.estimatedDelivery,
     this.deliveryAddress,
-    required this.paymentMethod,
-    required this.createdAt,
-  });
+    this.paymentMethod = 'COD',
+    Timestamp? createdAt,
+  }) : createdAt = createdAt ?? Timestamp.now();
 
   factory Order.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
@@ -85,7 +85,7 @@ class Order {
     final items = itemsList
         .map((item) => CartItem.fromMap(Map<String, dynamic>.from(item)))
         .toList();
-    
+
     final historyList = data['statusHistory'] as List? ?? [];
     final statusHistory = historyList
         .map((item) => Map<String, dynamic>.from(item))
@@ -95,7 +95,9 @@ class Order {
       id: doc.id,
       userId: data['userId']?.toString() ?? '',
       items: items,
-      totalAmount: (data['totalAmount'] is num) ? (data['totalAmount'] as num).toDouble() : 0.0,
+      totalAmount: (data['totalAmount'] is num)
+          ? (data['totalAmount'] as num).toDouble()
+          : 0.0,
       status: data['status']?.toString() ?? 'pending',
       statusHistory: statusHistory,
       estimatedDelivery: data['estimatedDelivery'] as Timestamp?,
