@@ -16,209 +16,589 @@
 //
 // ============================================================================
 
+// ============================================================================
+// Firestore Product Seeder - LuxeStore (50 Products)
+// ============================================================================
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-/// Uploads 50 sample products to the Firestore `products` collection.
-///
-/// Skips the upload if the collection already contains exactly 50 documents.
-/// Otherwise, it wipes the collection and seeds fresh data.
 Future<void> seedProductsToFirestore() async {
   final firestore = FirebaseFirestore.instance;
   final productsRef = firestore.collection('products');
 
   try {
-    // ── 1. Check existing count ─────────────────────────────────────────
     final existing = await productsRef.limit(51).get();
-    if (existing.docs.length == 50) {
+    if (existing.docs.isNotEmpty) {
       debugPrint(
-        '[Seeder] Products collection already has exactly 50 items. Skipping seed.',
+        '[Seeder] 🗑️ Found ${existing.docs.length} old products. Clearing...',
       );
-      return;
+      await clearAllProducts();
     }
 
-    debugPrint('[Seeder] Found ${existing.docs.length} existing products. Re-seeding...');
-
-    // ── 2. Clear old data ───────────────────────────────────────────────
+    debugPrint('[Seeder] Re-seeding ${existing.docs.length} → 50 products...');
     await clearAllProducts();
 
-    // ── 3. Product data ─────────────────────────────────────────────────
     final products = _buildProductList();
-
-    // ── 4. Upload with progress ─────────────────────────────────────────
     final batch = firestore.batch();
 
     for (int i = 0; i < products.length; i++) {
-      final docRef = productsRef.doc(); // auto-generated ID
+      final docRef = productsRef.doc();
       batch.set(docRef, products[i]);
-      debugPrint('[Seeder] Queued product ${i + 1}/${products.length}: ${products[i]['name']}');
     }
 
     await batch.commit();
-
-    debugPrint('');
-    debugPrint('═══════════════════════════════════════════════════');
-    debugPrint('[Seeder] ✅ Successfully uploaded ${products.length} products!');
-    debugPrint('═══════════════════════════════════════════════════');
+    debugPrint('[Seeder] ✅ Successfully uploaded 50 products!');
   } catch (e, stack) {
-    debugPrint('[Seeder] ❌ Error seeding products: $e');
+    debugPrint('[Seeder] ❌ Error: $e');
     debugPrint('$stack');
   }
 }
 
-/// Deletes **every** document in the `products` collection.
 Future<void> clearAllProducts() async {
   final firestore = FirebaseFirestore.instance;
   final productsRef = firestore.collection('products');
+  final snapshot = await productsRef.get();
 
-  try {
-    final snapshot = await productsRef.get();
+  if (snapshot.docs.isEmpty) return;
 
-    if (snapshot.docs.isEmpty) {
-      debugPrint('[Seeder] Products collection is already empty.');
-      return;
-    }
-
-    final batch = firestore.batch();
-    for (final doc in snapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
-
-    debugPrint(
-      '[Seeder] 🗑️  Deleted ${snapshot.docs.length} old products from Firestore.',
-    );
-  } catch (e) {
-    debugPrint('[Seeder] ❌ Error clearing products: $e');
+  final batch = firestore.batch();
+  for (final doc in snapshot.docs) {
+    batch.delete(doc.reference);
   }
+  await batch.commit();
+  debugPrint('[Seeder] 🗑️ Cleared ${snapshot.docs.length} products');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Private helpers
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// BUILD PRODUCT LIST
+// ──────────────────────────────────────────────────────────────────────────
 
 List<Map<String, dynamic>> _buildProductList() {
   final List<Map<String, dynamic>> allProducts = [];
 
-  // 1. Women (10 products)
-  final womenNames = [
-    'Silk Midi Wrap Dress', 'Cashmere Off-Shoulder Top', 'Tailored Wide-Leg Trousers',
-    'Velvet Blazer Jacket', 'Embroidered Maxi Skirt', 'Floral Summer Dress',
-    'High-Waisted Pencil Skirt', 'Ribbed Knit Turtleneck', 'Pleated Chiffon Blouse',
-    'Satin Slip Dress'
+  // ─── MEN (10 Products) ───────────────────────────────────────────────────
+  final menProducts = [
+    {
+      'name': 'Classic Black Blazer',
+      'img': 'men_product1.png',
+      'price': 320,
+      'desc': 'Premium tailored blazer.',
+      'sizes': ['S', 'M', 'L', 'XL', 'XXL'],
+      'colors': ['Black', 'Navy', 'Charcoal'],
+    },
+    {
+      'name': 'Light Blue Dress Shirt',
+      'img': 'men_product2.png',
+      'price': 85,
+      'desc': 'Crisp cotton shirt.',
+      'sizes': ['S', 'M', 'L', 'XL', 'XXL'],
+      'colors': ['Light Blue', 'White', 'Pink', 'Navy'],
+    },
+    {
+      'name': 'Beige Chino Trousers',
+      'img': 'men_product3.png',
+      'price': 110,
+      'desc': 'Comfortable slim-fit chinos.',
+      'sizes': ['30', '32', '34', '36', '38'],
+      'colors': ['Beige', 'Navy', 'Olive', 'Black'],
+    },
+    {
+      'name': 'Navy Crew Neck Sweater',
+      'img': 'men_product4.png',
+      'price': 95,
+      'desc': 'Warm knit sweater.',
+      'sizes': ['S', 'M', 'L', 'XL'],
+      'colors': ['Navy', 'Grey', 'Burgundy', 'Black'],
+    },
+    {
+      'name': 'Brown Leather Chelsea Boots',
+      'img': 'men_product5.png',
+      'price': 180,
+      'desc': 'Handcrafted leather boots.',
+      'sizes': ['7', '8', '9', '10', '11', '12'],
+      'colors': ['Brown', 'Black', 'Tan'],
+    },
+    {
+      'name': 'Minimalist Analog Watch',
+      'img': 'men_product6.png',
+      'price': 210,
+      'desc': 'Sleek design watch.',
+      'sizes': ['One Size'],
+      'colors': ['Silver', 'Gold', 'Black', 'Rose Gold'],
+    },
+    {
+      'name': 'Light Wash Slim Jeans',
+      'img': 'men_product7.png',
+      'price': 105,
+      'desc': 'Modern cut denim.',
+      'sizes': ['30', '32', '34', '36', '38'],
+      'colors': ['Light Blue', 'Dark Blue', 'Black'],
+    },
+    {
+      'name': 'Purple Polo T-Shirt',
+      'img': 'men_product8.png',
+      'price': 65,
+      'desc': 'Breathable polo.',
+      'sizes': ['S', 'M', 'L', 'XL', 'XXL'],
+      'colors': ['Purple', 'Navy', 'White', 'Black', 'Grey'],
+    },
+    {
+      'name': 'Black Leather Belt',
+      'img': 'men_product9.png',
+      'price': 45,
+      'desc': 'Classic reversible belt.',
+      'sizes': ['32', '34', '36', '38', '40'],
+      'colors': ['Black', 'Brown', 'Tan'],
+    },
+    {
+      'name': 'White Slip-On Loafers',
+      'img': 'men_product10.png',
+      'price': 130,
+      'desc': 'Elegant leather loafers.',
+      'sizes': ['7', '8', '9', '10', '11', '12'],
+      'colors': ['White', 'Black', 'Brown', 'Navy'],
+    },
   ];
-  for (int i = 0; i < 10; i++) {
-    allProducts.add(_product(
-      name: womenNames[i],
-      category: 'Women',
-      price: 150 + (i * 15),
-      originalPrice: 190 + (i * 20),
-      rating: 4.5 + (i % 5) * 0.1,
-      reviewsCount: 80 + (i * 12),
-      description: 'Elegant and sophisticated ${womenNames[i].toLowerCase()} tailored for the modern woman. Perfect for formal occasions or elevate your daily wardrobe with this premium piece.',
-      imageUrl: 'assets/images/products/women/women_product${i + 1}.png',
-      materialTitle: 'Premium Fabric Blend',
-      materialDescription: 'High-quality sustainable materials. Dry clean recommended.',
-      sizes: ['XS', 'S', 'M', 'L', 'XL'],
-    ));
+
+  for (var p in menProducts) {
+    allProducts.add(
+      _product(
+        name: p['name'] as String,
+        category: 'Men',
+        price: p['price'] as int,
+        originalPrice: (p['price'] as int) + 50,
+        rating: 4.5 + ((p['price'] as int) % 10) * 0.1,
+        reviewsCount: 80 + ((p['price'] as int) % 20),
+        description: p['desc'] as String,
+        imageUrl: 'assets/images/products/men/${p['img']}',
+        materialTitle: 'Premium Quality',
+        materialDescription: 'Durable, comfortable fabric.',
+        sizes: List<String>.from(p['sizes'] as List),
+        colors: List<String>.from(p['colors'] as List),
+      ),
+    );
   }
 
-  // 2. Men (10 products)
-  final menNames = [
-    'Classic Charcoal Suit', 'French Cuff Dress Shirt', 'Merino Crew Neck Sweater',
-    'Leather Bomber Jacket', 'Linen Relaxed-Fit Chinos', 'Slim-Fit Oxford Shirt',
-    'Wool Blend Overcoat', 'Pinstripe Suit Trousers', 'Quilted Vest',
-    'Cable Knit Cardigan'
+  // ─── WOMEN (10 Products) ─────────────────────────────────────────────────
+  final womenProducts = [
+    {
+      'name': 'Black Evening Gown',
+      'img': 'women_product1.png',
+      'price': 280,
+      'desc': 'Elegant slip dress.',
+      'sizes': ['XS', 'S', 'M', 'L'],
+      'colors': ['Black', 'Navy', 'Burgundy', 'Emerald'],
+    },
+    {
+      'name': 'Beige Trench Coat',
+      'img': 'women_product2.png',
+      'price': 310,
+      'desc': 'Classic double-breasted coat.',
+      'sizes': ['XS', 'S', 'M', 'L', 'XL'],
+      'colors': ['Beige', 'Black', 'Navy', 'Camel'],
+    },
+    {
+      'name': 'Black Leather Tote',
+      'img': 'women_product3.png',
+      'price': 190,
+      'desc': 'Spacious everyday bag.',
+      'sizes': ['One Size'],
+      'colors': ['Black', 'Brown', 'Tan', 'Burgundy'],
+    },
+    {
+      'name': 'Structured Black Blazer',
+      'img': 'women_product4.png',
+      'price': 240,
+      'desc': 'Sharp tailored blazer.',
+      'sizes': ['XS', 'S', 'M', 'L', 'XL'],
+      'colors': ['Black', 'Navy', 'White', 'Grey'],
+    },
+    {
+      'name': 'Light Blue Midi Dress',
+      'img': 'women_product5.png',
+      'price': 145,
+      'desc': 'Floral printed dress.',
+      'sizes': ['XS', 'S', 'M', 'L'],
+      'colors': ['Light Blue', 'Pink', 'Yellow', 'White'],
+    },
+    {
+      'name': 'Color-Block Handbag',
+      'img': 'women_product6.png',
+      'price': 160,
+      'desc': 'Trendy structured bag.',
+      'sizes': ['One Size'],
+      'colors': ['Multi', 'Black/White', 'Beige/Brown', 'Navy/Red'],
+    },
+    {
+      'name': 'Floral Wrap Skirt',
+      'img': 'women_product7.png',
+      'price': 95,
+      'desc': 'Flowy midi skirt.',
+      'sizes': ['XS', 'S', 'M', 'L'],
+      'colors': ['Floral Blue', 'Floral Pink', 'Floral Green'],
+    },
+    {
+      'name': 'Gold Chain Necklace',
+      'img': 'women_product8.png',
+      'price': 85,
+      'desc': 'Minimalist layered chain.',
+      'sizes': ['One Size'],
+      'colors': ['Gold', 'Silver', 'Rose Gold'],
+    },
+    {
+      'name': 'Black Strappy Heels',
+      'img': 'women_product9.png',
+      'price': 135,
+      'desc': 'Elegant evening heels.',
+      'sizes': ['36', '37', '38', '39', '40', '41'],
+      'colors': ['Black', 'Nude', 'Red', 'Silver'],
+    },
+    {
+      'name': 'Cream Turtleneck Sweater',
+      'img': 'women_product10.png',
+      'price': 110,
+      'desc': 'Cozy knit sweater.',
+      'sizes': ['XS', 'S', 'M', 'L', 'XL'],
+      'colors': ['Cream', 'Black', 'Grey', 'Camel'],
+    },
   ];
-  for (int i = 0; i < 10; i++) {
-    allProducts.add(_product(
-      name: menNames[i],
-      category: 'Men',
-      price: 120 + (i * 25),
-      originalPrice: 160 + (i * 30),
-      rating: 4.4 + (i % 6) * 0.1,
-      reviewsCount: 65 + (i * 15),
-      description: 'A timeless ${menNames[i].toLowerCase()} designed with impeccable tailoring. Durable, comfortable, and versatile enough for any smart-casual or formal setting.',
-      imageUrl: 'assets/images/products/men/men_product${i + 1}.png',
-      materialTitle: 'Refined Wool & Cotton',
-      materialDescription: 'Expertly woven for breathability and structure. Professional care.',
-      sizes: ['S', 'M', 'L', 'XL', 'XXL'],
-    ));
+
+  for (var p in womenProducts) {
+    allProducts.add(
+      _product(
+        name: p['name'] as String,
+        category: 'Women',
+        price: p['price'] as int,
+        originalPrice: (p['price'] as int) + 60,
+        rating: 4.6 + ((p['price'] as int) % 10) * 0.1,
+        reviewsCount: 90 + ((p['price'] as int) % 25),
+        description: p['desc'] as String,
+        imageUrl: 'assets/images/products/women/${p['img']}',
+        materialTitle: 'Premium Fabric',
+        materialDescription: 'Soft, breathable, elegant.',
+        sizes: List<String>.from(p['sizes'] as List),
+        colors: List<String>.from(p['colors'] as List),
+      ),
+    );
   }
 
-  // 3. Kids (10 products)
-  final kidsNames = [
-    'Boys Polo Shirt Set', 'Girls Tulle Party Dress', 'Denim Dungaree Overalls',
-    'Hooded Puffer Jacket', 'Printed Jogger Set', 'Graphic Print T-Shirt',
-    'Corduroy Pinafore', 'Knit Bobble Hat', 'Waterproof Raincoat',
-    'Classic Canvas Sneakers'
+  // ─── KIDS (10 Products) ──────────────────────────────────────────────────
+  final kidsProducts = [
+    {
+      'name': 'Cream Knit Sweater',
+      'img': 'kids_product1.png',
+      'price': 45,
+      'desc': 'Soft baby sweater.',
+      'sizes': ['2Y', '4Y', '6Y', '8Y', '10Y'],
+      'colors': ['Cream', 'Pink', 'Blue', 'Grey'],
+    },
+    {
+      'name': 'Denim Overalls',
+      'img': 'kids_product2.png',
+      'price': 55,
+      'desc': 'Cute adjustable overalls.',
+      'sizes': ['2Y', '4Y', '6Y', '8Y', '10Y', '12Y'],
+      'colors': ['Light Blue', 'Dark Blue', 'Pink'],
+    },
+    {
+      'name': 'Unicorn Rain Boots',
+      'img': 'kids_product3.png',
+      'price': 35,
+      'desc': 'Waterproof boots.',
+      'sizes': ['22', '24', '26', '28', '30', '32'],
+      'colors': ['Pink', 'Purple', 'Blue', 'Rainbow'],
+    },
+    {
+      'name': 'Pink Ruffled Dress',
+      'img': 'kids_product4.png',
+      'price': 40,
+      'desc': 'Party dress.',
+      'sizes': ['2Y', '4Y', '6Y', '8Y', '10Y'],
+      'colors': ['Pink', 'White', 'Lavender', 'Yellow'],
+    },
+    {
+      'name': 'White Cardigan',
+      'img': 'kids_product5.png',
+      'price': 50,
+      'desc': 'Lightweight cardigan.',
+      'sizes': ['2Y', '4Y', '6Y', '8Y', '10Y', '12Y'],
+      'colors': ['White', 'Pink', 'Blue', 'Grey'],
+    },
+    {
+      'name': 'Lace Sun Hat Set',
+      'img': 'kids_product6.png',
+      'price': 25,
+      'desc': 'Adorable hat set.',
+      'sizes': ['S', 'M', 'L'],
+      'colors': ['White', 'Pink', 'Cream'],
+    },
+    {
+      'name': 'Denim Jacket',
+      'img': 'kids_product7.png',
+      'price': 60,
+      'desc': 'Classic denim jacket.',
+      'sizes': ['4Y', '6Y', '8Y', '10Y', '12Y'],
+      'colors': ['Light Blue', 'Dark Blue', 'Black'],
+    },
+    {
+      'name': 'Rainbow Striped Sweater',
+      'img': 'kids_product8.png',
+      'price': 45,
+      'desc': 'Bright colorful sweater.',
+      'sizes': ['2Y', '4Y', '6Y', '8Y', '10Y'],
+      'colors': ['Rainbow', 'Pink Stripe', 'Blue Stripe'],
+    },
+    {
+      'name': 'White & Green Sneakers',
+      'img': 'kids_product9.png',
+      'price': 50,
+      'desc': 'Comfortable sneakers.',
+      'sizes': ['22', '24', '26', '28', '30', '32', '34'],
+      'colors': ['White/Green', 'White/Pink', 'White/Blue', 'All White'],
+    },
+    {
+      'name': 'Floral Print Dress',
+      'img': 'kids_product10.png',
+      'price': 42,
+      'desc': 'Charming floral dress.',
+      'sizes': ['2Y', '4Y', '6Y', '8Y', '10Y', '12Y'],
+      'colors': ['Floral Pink', 'Floral Blue', 'Floral Yellow'],
+    },
   ];
-  for (int i = 0; i < 10; i++) {
-    allProducts.add(_product(
-      name: kidsNames[i],
-      category: 'Kids',
-      price: 45 + (i * 8),
-      originalPrice: 60 + (i * 10),
-      rating: 4.6 + (i % 4) * 0.1,
-      reviewsCount: 110 + (i * 5),
-      description: 'Comfortable and playful ${kidsNames[i].toLowerCase()}. Made with soft, skin-friendly fabrics to ensure maximum comfort during active play and adventures.',
-      imageUrl: 'assets/images/products/kids/kids_product${i + 1}.png',
-      materialTitle: 'Organic Cotton',
-      materialDescription: '100% organic materials. Machine washable at 40°C.',
-      sizes: ['2Y', '4Y', '6Y', '8Y', '10Y', '12Y'],
-    ));
+
+  for (var p in kidsProducts) {
+    allProducts.add(
+      _product(
+        name: p['name'] as String,
+        category: 'Kids',
+        price: p['price'] as int,
+        originalPrice: (p['price'] as int) + 20,
+        rating: 4.7 + ((p['price'] as int) % 5) * 0.1,
+        reviewsCount: 60 + ((p['price'] as int) % 15),
+        description: p['desc'] as String,
+        imageUrl: 'assets/images/products/kids/${p['img']}',
+        materialTitle: 'Organic Cotton',
+        materialDescription: 'Hypoallergenic, gentle on skin.',
+        sizes: List<String>.from(p['sizes'] as List),
+        colors: List<String>.from(p['colors'] as List),
+      ),
+    );
   }
 
-  // 4. Accessories (10 products)
-  final accNames = [
-    'Quilted Leather Tote Bag', 'Reversible Leather Belt', 'Chronograph Wrist Watch',
-    'Pearl Drop Earrings', 'Silk Pocket Square Set', 'Aviator Sunglasses',
-    'Cashmere Fringed Scarf', 'Suede Crossbody Bag', 'Classic Fedora Hat',
-    'Leather Zip Wallet'
+  // ─── ACCESSORIES (10 Products) ───────────────────────────────────────────
+  final accProducts = [
+    {
+      'name': 'Gold Hoop Earrings',
+      'img': 'acc_product1.png',
+      'price': 35,
+      'desc': 'Classic hoops.',
+      'sizes': ['One Size'],
+      'colors': ['Gold', 'Silver', 'Rose Gold'],
+    },
+    {
+      'name': 'Chronograph Watch',
+      'img': 'acc_product2.png',
+      'price': 180,
+      'desc': 'Sporty timepiece.',
+      'sizes': ['One Size'],
+      'colors': ['Silver', 'Gold', 'Black', 'Blue Dial'],
+    },
+    {
+      'name': 'Cream Tote Bag',
+      'img': 'acc_product3.png',
+      'price': 140,
+      'desc': 'Spacious tote.',
+      'sizes': ['One Size'],
+      'colors': ['Cream', 'Black', 'Brown', 'Navy'],
+    },
+    {
+      'name': 'Brown Leather Belt',
+      'img': 'acc_product4.png',
+      'price': 45,
+      'desc': 'Classic belt.',
+      'sizes': ['30', '32', '34', '36', '38', '40'],
+      'colors': ['Brown', 'Black', 'Tan'],
+    },
+    {
+      'name': 'Silk Printed Scarf',
+      'img': 'acc_product5.png',
+      'price': 65,
+      'desc': 'Luxurious scarf.',
+      'sizes': ['One Size'],
+      'colors': ['Floral', 'Geometric', 'Abstract', 'Paisley'],
+    },
+    {
+      'name': 'Round Frame Glasses',
+      'img': 'acc_product6.png',
+      'price': 95,
+      'desc': 'Vintage frames.',
+      'sizes': ['One Size'],
+      'colors': ['Black', 'Gold', 'Tortoise', 'Silver'],
+    },
+    {
+      'name': 'Gold Layered Necklace',
+      'img': 'acc_product7.png',
+      'price': 75,
+      'desc': 'Delicate necklace.',
+      'sizes': ['One Size'],
+      'colors': ['Gold', 'Silver', 'Rose Gold'],
+    },
+    {
+      'name': 'Pink Clutch Wallet',
+      'img': 'acc_product8.png',
+      'price': 55,
+      'desc': 'Compact clutch.',
+      'sizes': ['One Size'],
+      'colors': ['Pink', 'Black', 'Beige', 'Red'],
+    },
+    {
+      'name': 'Pearl Drop Earrings',
+      'img': 'acc_product9.png',
+      'price': 40,
+      'desc': 'Elegant pearl drops.',
+      'sizes': ['One Size'],
+      'colors': ['White Pearl', 'Cream Pearl', 'Black Pearl'],
+    },
+    {
+      'name': 'Blue Bow Tie Set',
+      'img': 'acc_product10.png',
+      'price': 35,
+      'desc': 'Pre-tied bow tie.',
+      'sizes': ['One Size'],
+      'colors': ['Navy Blue', 'Black', 'Burgundy', 'Grey'],
+    },
   ];
-  for (int i = 0; i < 10; i++) {
-    allProducts.add(_product(
-      name: accNames[i],
-      category: 'Accessories',
-      price: 85 + (i * 35),
-      originalPrice: 110 + (i * 45),
-      rating: 4.7 + (i % 3) * 0.1,
-      reviewsCount: 200 + (i * 8),
-      description: 'Complete your look with this luxurious ${accNames[i].toLowerCase()}. Crafted with exquisite attention to detail, making it the perfect statement piece.',
-      imageUrl: 'assets/images/products/accessories/acc_product${i + 1}.png',
-      materialTitle: 'Genuine Leather & Metals',
-      materialDescription: 'Premium hardware and ethically sourced leather. Wipe clean.',
-      sizes: ['One Size'],
-    ));
+
+  for (var p in accProducts) {
+    allProducts.add(
+      _product(
+        name: p['name'] as String,
+        category: 'Accessories',
+        price: p['price'] as int,
+        originalPrice: (p['price'] as int) + 30,
+        rating: 4.8 + ((p['price'] as int) % 8) * 0.1,
+        reviewsCount: 100 + ((p['price'] as int) % 30),
+        description: p['desc'] as String,
+        imageUrl: 'assets/images/products/accessories/${p['img']}',
+        materialTitle: 'Premium Material',
+        materialDescription: 'Crafted with attention to detail.',
+        sizes: List<String>.from(p['sizes'] as List),
+        colors: List<String>.from(p['colors'] as List),
+      ),
+    );
   }
 
-  // 5. Featured (10 products)
-  final featuredNames = [
-    'Signature Logo Hoodie', 'Premium Canvas Backpack', 'Limited Edition Sneakers',
-    'Essential Cotton Tee', 'Minimalist Silver Ring', 'Structured Tote Bag',
-    'Double-Breasted Trench', 'High-Top Trainers', 'Woven Leather Belt',
-    'Cashmere Beanie'
+  // ─── FEATURED (10 Products) ──────────────────────────────────────────────
+  final featuredProducts = [
+    {
+      'name': 'Signature Logo Hoodie',
+      'img': 'product1.png',
+      'price': 95,
+      'desc': 'Comfortable hoodie.',
+      'sizes': ['S', 'M', 'L', 'XL', 'XXL'],
+      'colors': ['Black', 'Grey', 'Navy', 'White'],
+    },
+    {
+      'name': 'Premium Canvas Backpack',
+      'img': 'product2.png',
+      'price': 120,
+      'desc': 'Spacious backpack.',
+      'sizes': ['One Size'],
+      'colors': ['Black', 'Navy', 'Khaki', 'Grey'],
+    },
+    {
+      'name': 'Limited Edition Sneakers',
+      'img': 'product3.png',
+      'price': 150,
+      'desc': 'Exclusive sneakers.',
+      'sizes': ['7', '8', '9', '10', '11', '12'],
+      'colors': ['White/Black', 'All White', 'Black/Red', 'Navy/White'],
+    },
+    {
+      'name': 'Essential Cotton Tee',
+      'img': 'product4.png',
+      'price': 35,
+      'desc': 'Soft everyday tee.',
+      'sizes': ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+      'colors': ['White', 'Black', 'Grey', 'Navy', 'Olive'],
+    },
+    {
+      'name': 'Minimalist Silver Ring',
+      'img': 'product5.png',
+      'price': 55,
+      'desc': 'Simple ring.',
+      'sizes': ['6', '7', '8', '9', '10'],
+      'colors': ['Silver', 'Gold', 'Rose Gold'],
+    },
+    {
+      'name': 'Structured Tote Bag',
+      'img': 'product6.png',
+      'price': 130,
+      'desc': 'Professional tote.',
+      'sizes': ['One Size'],
+      'colors': ['Black', 'Brown', 'Navy', 'Burgundy'],
+    },
+    {
+      'name': 'Bollywood Oxidized Jhumka',
+      'img': 'product7.png',
+      'price': 280,
+      'desc': 'Timeless trench coat.',
+      'sizes': ['One Size'],
+      'colors': ['Beige', 'Black', 'Navy', 'Olive'],
+    },
+    {
+      'name': 'Teddy Bear ',
+      'img': 'product8.png',
+      'price': 110,
+      'desc': 'Street-style sneakers.',
+      'sizes': ['One Size'],
+      'colors': ['Pink', 'White', 'Brown', 'Blue'],
+    },
+    {
+      'name': 'Woven Leather Slipper',
+      'img': 'product9.png',
+      'price': 65,
+      'desc': 'Textured belt.',
+      'sizes': ['32', '34', '36', '38', '40'],
+      'colors': ['Brown', 'Black', 'Tan'],
+    },
+    {
+      'name': 'Sukhi Bridal Jewellery',
+      'img': 'product10.png',
+      'price': 45,
+      'desc': 'Luxuriously soft beanie.',
+      'sizes': ['One Size'],
+      'colors': ['Gold, Silver, Rose Gold'],
+    },
   ];
-  for (int i = 0; i < 10; i++) {
-    allProducts.add(_product(
-      name: featuredNames[i],
-      category: 'Featured',
-      price: 95 + (i * 20),
-      originalPrice: 130 + (i * 25),
-      rating: 4.8 + (i % 2) * 0.1,
-      reviewsCount: 310 + (i * 22),
-      description: 'Our highly sought-after ${featuredNames[i].toLowerCase()}. Part of the exclusive Featured collection showcasing the absolute best of our seasonal designs.',
-      imageUrl: 'assets/images/products/product${i + 1}.png',
-      materialTitle: 'Atelier Luxe Exclusive',
-      materialDescription: 'Special edition materials. Limited run.',
-      sizes: ['S', 'M', 'L', 'XL'], // generic sizes for featured items
-    ));
+
+  for (var p in featuredProducts) {
+    allProducts.add(
+      _product(
+        name: p['name'] as String,
+        category: 'Featured',
+        price: p['price'] as int,
+        originalPrice: (p['price'] as int) + 40,
+        rating: 4.9,
+        reviewsCount: 150 + ((p['price'] as int) % 50),
+        description: p['desc'] as String,
+        imageUrl: 'assets/images/products/${p['img']}',
+        materialTitle: 'Exclusive Collection',
+        materialDescription: 'Limited edition premium quality.',
+        sizes: List<String>.from(p['sizes'] as List),
+        colors: List<String>.from(p['colors'] as List),
+      ),
+    );
   }
 
   return allProducts;
 }
 
-/// Helper to build a single product map with consistent field names.
+// ──────────────────────────────────────────────────────────────────────────
+// HELPER FUNCTION
+// ──────────────────────────────────────────────────────────────────────────
+
 Map<String, dynamic> _product({
   required String name,
   required String category,
@@ -231,6 +611,7 @@ Map<String, dynamic> _product({
   required String materialTitle,
   required String materialDescription,
   required List<String> sizes,
+  required List<String> colors,
 }) {
   return {
     'brand': 'ATELIER LUXE',
@@ -245,6 +626,7 @@ Map<String, dynamic> _product({
     'materialTitle': materialTitle,
     'materialDescription': materialDescription,
     'sizes': sizes,
+    'colors': colors,
     'inStock': true,
     'createdAt': FieldValue.serverTimestamp(),
   };

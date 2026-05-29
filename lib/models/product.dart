@@ -14,6 +14,7 @@ class Product {
   final String materialTitle;
   final String materialDescription;
   final List<String> sizes;
+  final List<String> colors;
   final bool inStock;
   final Timestamp? createdAt;
 
@@ -31,6 +32,7 @@ class Product {
     required this.materialTitle,
     required this.materialDescription,
     required this.sizes,
+    required this.colors, 
     required this.inStock,
     this.createdAt,
   });
@@ -73,6 +75,7 @@ class Product {
       materialTitle: data['materialTitle']?.toString() ?? '',
       materialDescription: data['materialDescription']?.toString() ?? '',
       sizes: List<String>.from(data['sizes'] ?? []),
+      colors: List<String>.from(data['colors'] ?? ['Default']),
       inStock: data['inStock'] ?? true,
       createdAt: data['createdAt'] as Timestamp?,
     );
@@ -92,6 +95,7 @@ class Product {
       'materialTitle': materialTitle,
       'materialDescription': materialDescription,
       'sizes': sizes,
+      'colors': colors,
       'inStock': inStock,
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),
     };

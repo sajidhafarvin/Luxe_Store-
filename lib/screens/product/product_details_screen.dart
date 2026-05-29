@@ -26,26 +26,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   int _quantity = 1;
   bool _showAllReviews = false;
 
-  // ── Colors / colour names ─────────────────────────────────────────────
-  final List<Color> _colors = [
-    const Color(0xFF1A1A2E), // Navy
-    const Color(0xFFF5A623), // Gold
-    const Color(0xFF9E9E9E), // Grey
-  ];
-
-  final List<List<String>> _colorOptions = [
-    ['Navy', 'Gold', 'Grey'],
-    ['Black', 'White', 'Nude'],
-    ['Tan', 'Black', 'Brown'],
-    ['Navy', 'Black', 'Brown'],
-    ['Gold', 'Silver', 'Rose'],
-    ['Camel', 'Black', 'Grey'],
-    ['Indigo', 'Black', 'Grey'],
-    ['White', 'Blue', 'Pink'],
-    ['Tan', 'Black', 'White'],
-    ['Gold', 'Silver', 'Rose'],
-  ];
-
   // ── Size selector: driven by product category ─────────────────────────
   List<String> _getSizesForCategory(String category) {
     switch (category.toLowerCase()) {
@@ -63,8 +43,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   bool get _isFavorite {
-    final product =
-        ModalRoute.of(context)?.settings.arguments as Product?;
+    final product = ModalRoute.of(context)?.settings.arguments as Product?;
     return WishlistManager().isWishlisted(product?.name ?? '');
   }
 
@@ -85,6 +64,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   void _handleAddToCart(
     Product product,
     List<String> sizes,
+    List<String> colors,
     BuildContext context,
   ) {
     // 1. Auth check
@@ -108,6 +88,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final chosenSize = isOneSize
         ? 'One Size'
         : sizes[_selectedSize < sizes.length ? _selectedSize : 0];
+    
+    final chosenColor = colors.isNotEmpty
+        ? colors[_selectedColor % colors.length]
+        : 'Default';
 
     CartManager().addItem({
       'name': product.name,
@@ -115,7 +99,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       'image': product.imageUrl,
       'brand': product.brand,
       'size': chosenSize,
-      'color': _colors[_selectedColor % _colors.length],
+      'color': chosenColor,
       'qty': _quantity,
     });
 
@@ -126,21 +110,33 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     // ── Receive Product from navigation ──────────────────────────────────
-    final product =
-        ModalRoute.of(context)!.settings.arguments as Product;
+    final product = ModalRoute.of(context)!.settings.arguments as Product;
 
-    final currentSizes = _getSizesForCategory(product.category);
+    // ✅ Dynamic Sizes from Firestore
+    final currentSizes = product.sizes.isNotEmpty 
+        ? product.sizes 
+        : _getSizesForCategory(product.category);
     final showSizes = currentSizes.isNotEmpty;
 
+    // ✅ Dynamic Colors from Firestore
+    final Map<String, Color> _colorMap = {
+      'Black': const Color(0xFF1A1A1A), 'White': const Color(0xFFF5F5F5),
+      'Navy': const Color(0xFF1A1A2E), 'Grey': const Color(0xFF9E9E9E),
+      'Gold': const Color(0xFFF5A623), 'Silver': const Color(0xFFC0C0C0),
+      'Rose Gold': const Color(0xFFB76E79), 'Brown': const Color(0xFF8B4513),
+      'Tan': const Color(0xFFD2B48C), 'Blue': const Color(0xFF2196F3),
+      'Red': const Color(0xFFE53935), 'Pink': const Color(0xFFE91E63),
+      'Default': const Color(0xFF757575),
+    };
+    final currentColors = product.colors.isNotEmpty ? product.colors : ['Black', 'White', 'Grey'];
+    final displayColors = currentColors.map((name) => _colorMap[name] ?? _colorMap['Default']!).toList();
+
     // Auto-select when there is only "One Size"
-    if (currentSizes.length == 1 && currentSizes.first == 'One Size' && _selectedSize == -1) {
+    if (currentSizes.length == 1 &&
+        currentSizes.first == 'One Size' &&
+        _selectedSize == -1) {
       _selectedSize = 0;
     }
-
-    // Colour options fallback by index (clamped)
-    final colorIndex =
-        product.reviewsCount % _colorOptions.length;
-    final currentColorOptions = _colorOptions[colorIndex];
 
     final theme = Theme.of(context);
 
@@ -194,8 +190,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           ),
                           Row(
                             children: [
-                              const Icon(Icons.star,
-                                  color: Color(0xFFF5A623), size: 18),
+                              const Icon(
+                                Icons.star,
+                                color: Color(0xFFF5A623),
+                                size: 18,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 product.rating.toStringAsFixed(1),
@@ -246,18 +245,22 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               '\$${product.originalPrice.toStringAsFixed(2)}',
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
-                                color: theme.colorScheme.onSurface
-                                    .withOpacity(0.4),
+                                color: theme.colorScheme.onSurface.withOpacity(
+                                  0.4,
+                                ),
                                 decoration: TextDecoration.lineThrough,
                               ),
                             ),
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppColors.secondaryColor
-                                    .withOpacity(0.15),
+                                color: AppColors.secondaryColor.withOpacity(
+                                  0.15,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -278,8 +281,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         product.description,
                         style: GoogleFonts.poppins(
                           fontSize: 14,
-                          color:
-                              theme.colorScheme.onSurface.withOpacity(0.6),
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
                           height: 1.5,
                         ),
                         maxLines: 4,
@@ -302,15 +304,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                             ),
                             TextButton(
                               style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: Size.zero,
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap),
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
                               onPressed: () {},
-                              child: Text('Size Guide',
-                                  style: GoogleFonts.poppins(
-                                      color: AppColors.secondaryColor,
-                                      fontSize: 12)),
+                              child: Text(
+                                'Size Guide',
+                                style: GoogleFonts.poppins(
+                                  color: AppColors.secondaryColor,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -325,7 +330,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                   setState(() => _selectedSize = index),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 10),
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   color: _selectedSize == index
                                       ? AppColors.primaryColor
@@ -345,7 +352,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                     color: _selectedSize == index
                                         ? Colors.white
                                         : theme.colorScheme.onSurface
-                                            .withOpacity(0.6),
+                                              .withOpacity(0.6),
                                   ),
                                 ),
                               ),
@@ -365,38 +372,44 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               Text(
                                 'COLORWAY',
                                 style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    color: theme.colorScheme.primary,
-                                    letterSpacing: 1),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: theme.colorScheme.primary,
+                                  letterSpacing: 1,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Row(
                                 children: List.generate(
-                                    currentColorOptions.length, (index) {
-                                  bool isSelected = _selectedColor == index;
-                                  return GestureDetector(
-                                    onTap: () => setState(
-                                        () => _selectedColor = index),
-                                    child: Container(
-                                      margin:
-                                          const EdgeInsets.only(right: 8),
-                                      width: 28,
-                                      height: 28,
-                                      decoration: BoxDecoration(
-                                        color: _colors[
-                                            index % _colors.length],
-                                        shape: BoxShape.circle,
-                                        border: isSelected
-                                            ? Border.all(
-                                                color:
-                                                    AppColors.secondaryColor,
-                                                width: 2)
+                                  displayColors.length,
+                                  (index) {
+                                    bool isSelected = _selectedColor == index;
+                                    return GestureDetector(
+                                      onTap: () => setState(
+                                        () => _selectedColor = index,
+                                      ),
+                                      child: Container(
+                                        margin: const EdgeInsets.only(right: 8),
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: displayColors[index],
+                                          shape: BoxShape.circle,
+                                          border: isSelected
+                                              ? Border.all(
+                                                  color:
+                                                      AppColors.secondaryColor,
+                                                  width: 2,
+                                                )
+                                              : null,
+                                        ),
+                                        child: isSelected
+                                            ? const Icon(Icons.check, size: 14, color: Colors.white)
                                             : null,
                                       ),
-                                    ),
-                                  );
-                                }),
+                                    );
+                                  },
+                                ),
                               ),
                             ],
                           ),
@@ -406,10 +419,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               Text(
                                 'QUANTITY',
                                 style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    color: theme.colorScheme.primary,
-                                    letterSpacing: 1),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: theme.colorScheme.primary,
+                                  letterSpacing: 1,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Row(
@@ -424,38 +438,46 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                       width: 36,
                                       height: 36,
                                       decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border: Border.all(
-                                              color: theme.dividerColor),
-                                          color: theme.cardColor),
-                                      child: Icon(Icons.remove,
-                                          color: theme.colorScheme.primary,
-                                          size: 18),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: theme.dividerColor,
+                                        ),
+                                        color: theme.cardColor,
+                                      ),
+                                      child: Icon(
+                                        Icons.remove,
+                                        color: theme.colorScheme.primary,
+                                        size: 18,
+                                      ),
                                     ),
                                   ),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 16),
-                                    child: Text('$_quantity',
-                                        style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color:
-                                                theme.colorScheme.primary)),
+                                      horizontal: 16,
+                                    ),
+                                    child: Text(
+                                      '$_quantity',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
                                   ),
                                   GestureDetector(
-                                    onTap: () =>
-                                        setState(() => _quantity++),
+                                    onTap: () => setState(() => _quantity++),
                                     child: Container(
                                       width: 36,
                                       height: 36,
                                       decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          color: theme.colorScheme.primary),
-                                      child: const Icon(Icons.add,
-                                          color: Colors.white, size: 18),
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      child: const Icon(
+                                        Icons.add,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -472,18 +494,19 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       Text(
                         product.materialTitle.toUpperCase(),
                         style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                            color: theme.colorScheme.primary,
-                            letterSpacing: 1.5),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                          color: theme.colorScheme.primary,
+                          letterSpacing: 1.5,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         product.materialDescription,
                         style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            color: theme.colorScheme.onSurface
-                                .withOpacity(0.6)),
+                          fontSize: 13,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
                       ),
 
                       // ── Reviews section ───────────────────────────
@@ -499,9 +522,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                     .getAverageRating(product.name)
                                     .toStringAsFixed(1),
                                 style: GoogleFonts.poppins(
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.colorScheme.primary),
+                                  fontSize: 48,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
                               ),
                               Row(
                                 children: List.generate(
@@ -509,8 +533,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                   (i) => Icon(
                                     i <
                                             ReviewManager()
-                                                .getAverageRating(
-                                                    product.name)
+                                                .getAverageRating(product.name)
                                                 .round()
                                         ? Icons.star
                                         : Icons.star_border,
@@ -523,9 +546,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                               Text(
                                 '${ReviewManager().getRatingCount(product.name)} reviews',
                                 style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    color: theme.colorScheme.onSurface
-                                        .withOpacity(0.6)),
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.6),
+                                ),
                               ),
                             ],
                           ),
@@ -533,48 +557,61 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           Expanded(
                             child: Column(
                               children: ['5', '4', '3', '2', '1'].map((star) {
-                                final count = ReviewManager()
-                                        .getRatingBreakdown(product.name)[
-                                    star] ??
+                                final count =
+                                    ReviewManager().getRatingBreakdown(
+                                      product.name,
+                                    )[star] ??
                                     0;
-                                final total = ReviewManager()
-                                    .getRatingCount(product.name);
-                                final percent =
-                                    total > 0 ? count / total : 0.0;
+                                final total = ReviewManager().getRatingCount(
+                                  product.name,
+                                );
+                                final percent = total > 0 ? count / total : 0.0;
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 4),
-                                  child: Row(children: [
-                                    Text(star,
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        star,
                                         style: GoogleFonts.poppins(
-                                            fontSize: 12,
-                                            color: theme.colorScheme.onSurface
-                                                .withOpacity(0.6))),
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.star,
-                                        size: 12,
-                                        color: Color(0xFFF5A623)),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: ClipRRect(
-                                        borderRadius:
-                                            BorderRadius.circular(4),
-                                        child: LinearProgressIndicator(
-                                          value: percent,
-                                          backgroundColor: theme.dividerColor,
-                                          valueColor:
-                                              const AlwaysStoppedAnimation(
-                                                  Color(0xFFF5A623)),
-                                          minHeight: 8,
+                                          fontSize: 12,
+                                          color: theme.colorScheme.onSurface
+                                              .withOpacity(0.6),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(count.toString(),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.star,
+                                        size: 12,
+                                        color: Color(0xFFF5A623),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                          child: LinearProgressIndicator(
+                                            value: percent,
+                                            backgroundColor: theme.dividerColor,
+                                            valueColor:
+                                                const AlwaysStoppedAnimation(
+                                                  Color(0xFFF5A623),
+                                                ),
+                                            minHeight: 8,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        count.toString(),
                                         style: GoogleFonts.poppins(
-                                            fontSize: 12,
-                                            color: theme.colorScheme.onSurface
-                                                .withOpacity(0.6))),
-                                  ]),
+                                          fontSize: 12,
+                                          color: theme.colorScheme.onSurface
+                                              .withOpacity(0.6),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 );
                               }).toList(),
                             ),
@@ -586,66 +623,83 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Customer Reviews',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.primary)),
+                          Text(
+                            'Customer Reviews',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
                           TextButton(
                             onPressed: () =>
                                 _showAddReviewSheet(context, product.name),
-                            child: Row(children: [
-                              const Icon(Icons.edit_outlined,
-                                  size: 16, color: AppColors.secondaryColor),
-                              const SizedBox(width: 4),
-                              Text('Write Review',
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.edit_outlined,
+                                  size: 16,
+                                  color: AppColors.secondaryColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Write Review',
                                   style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      color: AppColors.secondaryColor)),
-                            ]),
+                                    fontSize: 12,
+                                    color: AppColors.secondaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
 
                       const SizedBox(height: 12),
-                      Builder(builder: (context) {
-                        final reviews =
-                            ReviewManager().getReviews(product.name);
-                        final displayReviews = _showAllReviews
-                            ? reviews
-                            : reviews.take(2).toList();
-                        return Column(
-                          children: [
-                            ...displayReviews
-                                .map((r) => _buildReviewCard(r, theme)),
-                            if (reviews.length > 2)
-                              TextButton(
-                                onPressed: () => setState(
-                                    () => _showAllReviews = !_showAllReviews),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _showAllReviews
-                                          ? 'Show Less'
-                                          : 'See All ${reviews.length} Reviews',
-                                      style: GoogleFonts.poppins(
+                      Builder(
+                        builder: (context) {
+                          final reviews = ReviewManager().getReviews(
+                            product.name,
+                          );
+                          final displayReviews = _showAllReviews
+                              ? reviews
+                              : reviews.take(2).toList();
+                          return Column(
+                            children: [
+                              ...displayReviews.map(
+                                (r) => _buildReviewCard(r, theme),
+                              ),
+                              if (reviews.length > 2)
+                                TextButton(
+                                  onPressed: () => setState(
+                                    () => _showAllReviews = !_showAllReviews,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        _showAllReviews
+                                            ? 'Show Less'
+                                            : 'See All ${reviews.length} Reviews',
+                                        style: GoogleFonts.poppins(
                                           fontSize: 13,
                                           color: AppColors.secondaryColor,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                    Icon(
-                                      _showAllReviews
-                                          ? Icons.keyboard_arrow_up
-                                          : Icons.keyboard_arrow_down,
-                                      color: AppColors.secondaryColor,
-                                    ),
-                                  ],
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Icon(
+                                        _showAllReviews
+                                            ? Icons.keyboard_arrow_up
+                                            : Icons.keyboard_arrow_down,
+                                        color: AppColors.secondaryColor,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                          ],
-                        );
-                      }),
+                            ],
+                          );
+                        },
+                      ),
 
                       // Space for the sticky bottom bar
                       const SizedBox(height: 100),
@@ -670,13 +724,17 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2))
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
                   ],
                 ),
-                child: Icon(Icons.arrow_back,
-                    color: theme.colorScheme.primary, size: 20),
+                child: Icon(
+                  Icons.arrow_back,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
               ),
             ),
           ),
@@ -703,15 +761,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2))
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
                   ],
                 ),
                 child: Icon(
                   _isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color:
-                      _isFavorite ? AppColors.secondaryColor : Colors.grey,
+                  color: _isFavorite ? AppColors.secondaryColor : Colors.grey,
                   size: 20,
                 ),
               ),
@@ -738,16 +796,20 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2))
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
                   ],
                 ),
                 child: Stack(
                   children: [
                     Center(
-                      child: Icon(Icons.shopping_bag_outlined,
-                          color: theme.colorScheme.primary, size: 20),
+                      child: Icon(
+                        Icons.shopping_bag_outlined,
+                        color: theme.colorScheme.primary,
+                        size: 20,
+                      ),
                     ),
                     if (CartManager().itemCount > 0)
                       Positioned(
@@ -757,17 +819,19 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           width: 14,
                           height: 14,
                           decoration: const BoxDecoration(
-                              color: AppColors.secondaryColor,
-                              shape: BoxShape.circle),
+                            color: AppColors.secondaryColor,
+                            shape: BoxShape.circle,
+                          ),
                           child: Center(
                             child: Text(
                               CartManager().itemCount > 9
                                   ? '9+'
                                   : '${CartManager().itemCount}',
                               style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold),
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -786,7 +850,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             child: Container(
               color: theme.cardColor,
               padding: const EdgeInsets.only(
-                  left: 16, top: 12, right: 16, bottom: 24),
+                left: 16,
+                top: 12,
+                right: 16,
+                bottom: 24,
+              ),
               child: SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -794,22 +862,27 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondaryColor,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: () =>
-                      _handleAddToCart(product, currentSizes, context),
+                      _handleAddToCart(product, currentSizes, currentColors, context),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.shopping_bag_outlined,
-                          color: Colors.white, size: 20),
+                      const Icon(
+                        Icons.shopping_bag_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Add to Cart',
                         style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: Colors.white),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: Colors.white,
+                        ),
                       ),
                     ],
                   ),
@@ -834,68 +907,88 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.dividerColor),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-                color: Color(review['color'] as int),
-                shape: BoxShape.circle),
-            child: Center(
-              child: Text(
-                review['initials'],
-                style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(review['name'],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Color(review['color'] as int),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    review['initials'],
                     style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      review['name'],
+                      style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.primary)),
-                Text(review['date'],
-                    style: GoogleFonts.poppins(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    Text(
+                      review['date'],
+                      style: GoogleFonts.poppins(
                         fontSize: 12,
-                        color: theme.colorScheme.onSurface.withOpacity(0.6))),
-              ],
-            ),
-          ),
-          Row(
-            children: List.generate(
-              5,
-              (i) => Icon(
-                i < (review['rating'] as int)
-                    ? Icons.star
-                    : Icons.star_border,
-                color: const Color(0xFFF5A623),
-                size: 14,
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              Row(
+                children: List.generate(
+                  5,
+                  (i) => Icon(
+                    i < (review['rating'] as int)
+                        ? Icons.star
+                        : Icons.star_border,
+                    color: const Color(0xFFF5A623),
+                    size: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            review['comment'],
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              height: 1.5,
             ),
           ),
-        ]),
-        const SizedBox(height: 12),
-        Text(review['comment'],
-            style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                height: 1.5)),
-        const SizedBox(height: 12),
-        Row(children: [
-          const Icon(Icons.thumb_up_outlined, size: 14, color: Colors.grey),
-          const SizedBox(width: 4),
-          Text('Helpful (${review['helpful']})',
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
-        ]),
-      ]),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.thumb_up_outlined, size: 14, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(
+                'Helpful (${review['helpful']})',
+                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -909,8 +1002,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
@@ -929,44 +1023,50 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2)),
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Write a Review',
-                    style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary)),
+                Text(
+                  'Write a Review',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(productName,
-                    style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.6))),
+                Text(
+                  productName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
                 const SizedBox(height: 20),
-                Text('Your Rating',
-                    style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary)),
+                Text(
+                  'Your Rating',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     5,
                     (i) => GestureDetector(
-                      onTap: () =>
-                          setModalState(() => selectedRating = i + 1),
+                      onTap: () => setModalState(() => selectedRating = i + 1),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: Icon(
-                          i < selectedRating
-                              ? Icons.star
-                              : Icons.star_border,
+                          i < selectedRating ? Icons.star : Icons.star_border,
                           color: const Color(0xFFF5A623),
                           size: 36,
                         ),
@@ -977,47 +1077,67 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 const SizedBox(height: 4),
                 Center(
                   child: Text(
-                    ['', 'Terrible', 'Poor', 'Good', 'Great', 'Excellent!'][
-                        selectedRating],
+                    [
+                      '',
+                      'Terrible',
+                      'Poor',
+                      'Good',
+                      'Great',
+                      'Excellent!',
+                    ][selectedRating],
                     style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        color: const Color(0xFFF5A623),
-                        fontWeight: FontWeight.w600),
+                      fontSize: 13,
+                      color: const Color(0xFFF5A623),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
-                Text('Your Review',
-                    style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.primary)),
+                Text(
+                  'Your Review',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: commentController,
                   maxLines: 4,
                   maxLength: 300,
                   style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface),
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Share your experience...',
-                    hintStyle:
-                        GoogleFonts.poppins(color: Colors.grey, fontSize: 13),
+                    hintStyle: GoogleFonts.poppins(
+                      color: Colors.grey,
+                      fontSize: 13,
+                    ),
                     filled: true,
                     fillColor: isDarkModeNotifier.value
                         ? const Color(0xFF2D2D2D)
                         : Colors.grey[50],
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                            color: Theme.of(context).dividerColor)),
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                      ),
+                    ),
                     enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                            color: Theme.of(context).dividerColor)),
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                      ),
+                    ),
                     focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: AppColors.secondaryColor, width: 2)),
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: AppColors.secondaryColor,
+                        width: 2,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1028,19 +1148,17 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.secondaryColor,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: () {
                       if (commentController.text.isEmpty) return;
-                      final initials = UserSession()
-                              .userName
-                              .isNotEmpty
-                          ? UserSession()
-                              .userName
-                              .split(' ')
-                              .map((w) => w.isNotEmpty ? w[0] : '')
-                              .join('')
-                              .toUpperCase()
+                      final initials = UserSession().userName.isNotEmpty
+                          ? UserSession().userName
+                                .split(' ')
+                                .map((w) => w.isNotEmpty ? w[0] : '')
+                                .join('')
+                                .toUpperCase()
                           : 'U';
                       ReviewManager().addReview(productName, {
                         'name': UserSession().userName.isNotEmpty
@@ -1056,11 +1174,14 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       Navigator.pop(ctx);
                       setState(() {});
                     },
-                    child: Text('Submit Review',
-                        style: GoogleFonts.poppins(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white)),
+                    child: Text(
+                      'Submit Review',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),

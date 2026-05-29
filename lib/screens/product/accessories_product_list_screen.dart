@@ -104,18 +104,7 @@ class _AccessoriesProductListScreenState extends State<AccessoriesProductListScr
                       onTap: () => Navigator.pushNamed(
                         context,
                         AppRoutes.productDetails,
-                        arguments: {
-                          'id': product.id,
-                          'name': product.name,
-                          'price': "\$${product.price.toStringAsFixed(2)}",
-                          'image': product.imageUrl,
-                          'brand': product.brand,
-                          'rating': product.rating.toStringAsFixed(1),
-                          'index': detailsIndex,
-                          'description': product.description,
-                          'materialTitle': product.materialTitle,
-                          'materialDescription': product.materialDescription,
-                        },
+                        arguments:product, 
                       ),
                       child: Container(
                         decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)]),

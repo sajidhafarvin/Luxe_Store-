@@ -43,6 +43,7 @@ class ProductViewModel extends ChangeNotifier {
         materialTitle: 'Cotton',
         materialDescription: '100% Cotton',
         sizes: ['S', 'M', 'L'],
+        colors: ['White', 'Black', 'Grey'],
         inStock: true,
       ),
       Product(
@@ -59,6 +60,7 @@ class ProductViewModel extends ChangeNotifier {
         materialTitle: 'Polyester',
         materialDescription: '100% Polyester',
         sizes: ['S', 'M'],
+        colors: ['Floral Blue', 'Floral Pink', 'Floral Green'],
         inStock: true,
       ),
       Product(
@@ -75,6 +77,7 @@ class ProductViewModel extends ChangeNotifier {
         materialTitle: 'Denim',
         materialDescription: '100% Denim',
         sizes: ['M', 'L', 'XL'],
+        colors: ['Blue', 'Black', 'Grey'],
         inStock: true,
       ),
       Product(
@@ -91,6 +94,7 @@ class ProductViewModel extends ChangeNotifier {
         materialTitle: 'Leather',
         materialDescription: 'Genuine Leather',
         sizes: ['One Size'],
+        colors: ['Brown', 'Black', 'Tan'],
         inStock: true,
       ),
     ];
