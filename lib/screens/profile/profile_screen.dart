@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; 
+
 import '../../constants/app_colors.dart';
 import '../cart/cart_screen.dart';
 import '../../repositories/auth_repository.dart';
@@ -10,7 +13,7 @@ import '../../utils/user_session.dart';
 import '../../utils/cart_manager.dart';
 import '../../utils/wishlist_manager.dart';
 import '../../utils/theme_manager.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/auth_provider.dart' as app_provider;
 import '../../providers/order_provider.dart';
 import '../../models/order.dart' as app_model;
 import 'package:provider/provider.dart';
@@ -30,18 +33,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isEditing = false;
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController(text: '+1 234 567 8900');
+  final _phoneController = TextEditingController();
   Future<List<app_model.Order>>? _ordersFuture;
+  bool _isLoadingProfile = true; //  loading state
+
+  XFile? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    _nameController.text = UserSession().userName.isNotEmpty ? UserSession().userName : 'Eleanor Sterling';
-    _emailController.text = UserSession().userEmail.isNotEmpty ? UserSession().userEmail : 'e.sterling@luxe.com';
+    _fetchUserData(); //  Fetch from Firestore on init
     
     // Fetch orders count
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+     final authProvider = Provider.of<app_provider.AuthProvider>(context, listen: false);
       if (authProvider.user != null) {
         setState(() {
           _ordersFuture = Provider.of<OrderProvider>(context, listen: false).getUserOrders(authProvider.user!.uid);
@@ -50,8 +56,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  XFile? _selectedImage;
-  final ImagePicker _picker = ImagePicker();
+  // ✅ NEW: Fetch user data from Firestore
+  Future<void> _fetchUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        
+        if (doc.exists && mounted) {
+          final data = doc.data() as Map<String, dynamic>;
+          setState(() {
+            _nameController.text = data['name'] ?? 'User';
+            _emailController.text = data['email'] ?? user.email ?? '';
+            _phoneController.text = data['phoneNumber'] ?? '';
+            _isLoadingProfile = false;
+          });
+          
+          // Also update UserSession for consistency
+          UserSession().userName = data['name'] ?? 'User';
+          UserSession().userEmail = data['email'] ?? user.email ?? '';
+        } else if (mounted) {
+          // Fallback to Auth if Firestore doc doesn't exist
+          setState(() {
+            _nameController.text = user.displayName ?? 'User';
+            _emailController.text = user.email ?? '';
+            _phoneController.text = '';
+            _isLoadingProfile = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ Error fetching user data: $e');
+      if (mounted) {
+        setState(() => _isLoadingProfile = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -174,6 +217,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // Show loading while fetching profile data
+    if (_isLoadingProfile) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: Center(child: CircularProgressIndicator(color: AppColors.secondaryColor)),
+      );
+    }
+    
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       bottomNavigationBar: BottomNavigationBar(
@@ -211,8 +263,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Positioned(bottom: 0, right: 0, child: GestureDetector(onTap: _pickImage, child: Container(width: 28, height: 28, decoration: const BoxDecoration(color: AppColors.secondaryColor, shape: BoxShape.circle), child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 14)))),
                   ]),
                   const SizedBox(height: 16),
+                  // ✅ Dynamic Name from Firestore
                   Text(_nameController.text, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white)),
                   const SizedBox(height: 4),
+                  // ✅ Dynamic Email from Firestore
                   Text(_emailController.text, style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70)),
                   const SizedBox(height: 16),
                   OutlinedButton(

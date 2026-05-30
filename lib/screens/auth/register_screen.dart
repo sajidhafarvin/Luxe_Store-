@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 
+import 'package:cloud_firestore/cloud_firestore.dart'; // 
 
 import '../../constants/app_colors.dart';
 import '../../constants/app_routes.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/auth_provider.dart'as app_provider;
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -231,6 +233,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _handleRegister() async {
     final name     = _nameController.text.trim();
     final email    = _emailController.text.trim();
+    final phone    = _phoneController.text.trim(); // 
     final password = _passwordController.text;
     final confirm  = _confirmController.text;
 
@@ -265,18 +268,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // ── Firebase registration via AuthProvider ──
     setState(() => _isLoading = true);
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = Provider.of<app_provider.AuthProvider>(context, listen: false);
     final success = await authProvider.registerWithEmail(email, password, name);
 
     if (!mounted) return;
-    setState(() => _isLoading = false);
-
+    
+    // ✅ SUCCESS Aana Firestore-ku Save Pannurom
     if (success) {
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          // Firestore-ku User Data Save Pannurom
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+            'name': name,
+            'email': email,
+            'phoneNumber': phone,
+            'createdAt': FieldValue.serverTimestamp(),
+            'uid': user.uid,
+          });
+        }
+      } catch (firestoreError) {
+        print('❌ Firestore save error: $firestoreError');
+        // Error vandhalum registration success, so continue
+      }
+
       _showSnackBar('Welcome to LUXE! Account created successfully.', backgroundColor: Colors.green);
-      // Small delay so the snackbar is visible before navigation
       await Future.delayed(const Duration(milliseconds: 600));
-      if (mounted) Navigator.pushReplacementNamed(context, AppRoutes.home);
+      
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      }
     } else {
+      setState(() => _isLoading = false);
       final errorMsg = authProvider.errorMessage ?? 'Registration failed. Please try again.';
       _showSnackBar(errorMsg);
     }

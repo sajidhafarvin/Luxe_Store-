@@ -12,6 +12,9 @@ class UserSession {
   String get userEmail => _userEmail;
   bool get isLoggedIn => _isLoggedIn;
 
+  set userName(String value) => _userName = value;
+  set userEmail(String value) => _userEmail = value;
+
   void login(String name, String email) {
     _userName = name;
     _userEmail = email;
